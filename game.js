@@ -72,6 +72,9 @@ window.onresize = () => {
     canvas.height = innerHeight;
 }
 
+firebase.database().ref("bgcolor").on("value", snap => {
+    canvas.style.backgroundColor = snap.val();
+});
 
 firebase.auth().onAuthStateChanged(function(user) {
   if (user) {
@@ -94,6 +97,20 @@ firebase.auth().onAuthStateChanged(function(user) {
 
         firebase.database().ref("users/"+user.uid+"/import/"+snap.key).remove();
     });
+    firebase.database().ref("users/"+user.uid+"/misses").on("value", snap => {
+        let p = document.getElementById('misses');
+        if(p.innerHTML != -1)
+        {
+            p.style.color = '#ff0000';
+            document.getElementById('cover').style.backgroundColor = "rgba(255,0,0,0.3)"
+            setTimeout(() => {
+                p.style.color='#ffffff'
+                document.getElementById('cover').style.backgroundColor = "rgba(255,0,0,0)"
+            }, 2000);
+        }
+        p.innerHTML = snap.val();
+
+    });
     init();
   } else {
       $('#setUpModal').modal('show');
@@ -111,7 +128,7 @@ function animate() {
     if(rightPressed && paddle.x + paddle.w + 0.01*canvas.width < canvas.width)
         paddle.x+=0.01*canvas.width;
 
-    c.fillStyle = '#ffffff';
+    c.fillStyle = '#ff00ff';
     c.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
 }
 
@@ -139,7 +156,7 @@ function updateBall(ball) {
         ball.theta = up(ball)? 180 - ball.theta : Math.abs(ball.theta - 180);
     if(ball.x + ball.r >= canvas.width && (ball.theta < 90 || ball.theta > 270))
         ball.theta = up(ball)? 180 - ball.theta : Math.abs(180 - ball.theta);
-    if(ball.y + ball.r >= paddle.y && ball.y + ball.r <= paddle.y + paddle.h && ball.x >= paddle.x && ball.x <= paddle.x + paddle.w && ball.theta < 180)
+    if(ball.y + ball.r >= paddle.y && ball.y + ball.r <= paddle.y + paddle.h && ball.x+ball.r/2 >= paddle.x && ball.x-ball.r/2 <= paddle.x + paddle.w && ball.theta < 180)
         ball.theta *= -1;
     ball.x+=ball.dr*Math.cos(ball.theta*Math.PI/180);
     ball.y+=ball.dr*Math.sin(ball.theta*Math.PI/180);
@@ -148,14 +165,14 @@ function updateBall(ball) {
     drawBall(ball);
 
     if(ball.y - ball.r > canvas.height) {
-        balls.splice(balls.indexOf(ball));
+        balls.splice(balls.indexOf(ball), 1);
         firebase.database().ref("users/"+firebase.auth().currentUser.uid+"/misses").once("value", snap => {
             firebase.database().ref("users/"+firebase.auth().currentUser.uid+"/misses").set((parseInt(snap.val())? parseInt(snap.val()): 0) +1);
         });
     }
 
     if(ball.y + ball.r < 0) {
-        balls.splice(balls.indexOf(ball));
+        balls.splice(balls.indexOf(ball), 1);
         sendBall(ball);
     }
 
